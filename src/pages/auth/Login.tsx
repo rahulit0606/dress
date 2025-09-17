@@ -138,8 +138,8 @@ const Login = () => {
         <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-sm text-yellow-800 font-medium mb-2">Demo Credentials:</p>
           <p className="text-xs text-yellow-700">
-            Email: demo@showroom.com<br />
-            Password: demo123
+            Create a new account using the "Sign up for free" link above, or<br />
+            use your own registered credentials to sign in.
           </p>
         </div>
       </div>
