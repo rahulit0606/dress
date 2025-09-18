@@ -42,7 +42,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+      
       if (session?.user) {
         fetchUserProfile(session.user.id);
       } else {
@@ -52,10 +58,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await fetchUserProfile(session.user.id);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error);
         setLoading(false);
       }
     });
@@ -65,6 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('showroom_profiles')
         .select('*')
@@ -86,6 +98,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // Set a basic user object even if profile fetch fails
+      const { data: authUser } = await supabase.auth.getUser();
+      if (authUser.user) {
+        setUser({
+          id: userId,
+          email: authUser.user.email || '',
+          showroom_name: 'My Showroom',
+          subscription_plan: 'basic',
+          role: 'owner'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -94,20 +117,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        setLoading(false);
         return { error: error.message };
       }
 
+      // Don't set loading to false here, let the auth state change handle it
       return {};
     } catch (error) {
-      return { error: 'An unexpected error occurred' };
-    } finally {
       setLoading(false);
+      return { error: 'An unexpected error occurred' };
     }
   };
 
@@ -120,6 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (error) {
+        setLoading(false);
         return { error: error.message };
       }
 
@@ -141,11 +166,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
+      setLoading(false);
       return {};
     } catch (error) {
-      return { error: 'An unexpected error occurred' };
-    } finally {
       setLoading(false);
+      return { error: 'An unexpected error occurred' };
     }
   };
 
