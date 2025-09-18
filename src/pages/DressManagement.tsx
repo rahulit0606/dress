@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Filter, Upload, Download, MoreVertical } from 'lucide-react';
 import { useAuth, supabase } from '../contexts/AuthContext';
 import { useEffect } from 'react';
+import VirtualTryOnModal from '../components/VirtualTryOnModal';
 
 const DressManagement = () => {
   const { user } = useAuth();
@@ -9,6 +10,8 @@ const DressManagement = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [dresses, setDresses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDress, setSelectedDress] = useState<any>(null);
+  const [showTryOnModal, setShowTryOnModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -42,6 +45,11 @@ const DressManagement = () => {
   const handleAddDress = () => {
     // For now, show an alert. In a real app, this would open a modal or navigate to add dress page
     alert('Add dress functionality will be implemented. This connects to your Supabase database.');
+  };
+
+  const handleTryOnDress = (dress: any) => {
+    setSelectedDress(dress);
+    setShowTryOnModal(true);
   };
 
   return (
@@ -153,8 +161,11 @@ const DressManagement = () => {
                   <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors">
                     Edit
                   </button>
-                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors">
-                    View Stats
+                  <button 
+                    onClick={() => handleTryOnDress(dress)}
+                    className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+                  >
+                    Try On
                   </button>
                 </div>
               </div>
@@ -175,6 +186,18 @@ const DressManagement = () => {
             Add Your First Dress
           </button>
         </div>
+      )}
+
+      {/* Virtual Try-On Modal */}
+      {selectedDress && (
+        <VirtualTryOnModal
+          isOpen={showTryOnModal}
+          onClose={() => {
+            setShowTryOnModal(false);
+            setSelectedDress(null);
+          }}
+          dress={selectedDress}
+        />
       )}
     </div>
   );
