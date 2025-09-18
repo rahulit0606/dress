@@ -119,46 +119,80 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
+      console.log('Fetching profile for user:', userId);
+      
       const { data, error } = await supabase
         .from('showroom_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
+      console.log('Profile fetch result:', { data, error });
+
       if (error) {
-        console.warn('Profile fetch error:', error);
+        console.warn('Profile fetch error:', error.message, error.code);
         // If profile doesn't exist, create it
         if (error.code === 'PGRST116') {
+          console.log('Profile not found, creating new profile...');
           const { data: authUser } = await supabase.auth.getUser();
           if (authUser.user) {
             // Create profile for existing user
-            const { error: insertError } = await supabase
+            const { data: newProfile, error: insertError } = await supabase
               .from('showroom_profiles')
               .insert([
                 {
                   id: userId,
-                  showroom_name: authUser.user.email?.split('@')[0] || 'My Showroom',
+                  showroom_name: authUser.user.user_metadata?.showroom_name || authUser.user.email?.split('@')[0] || 'My Showroom',
                   email: authUser.user.email,
                   subscription_plan: 'basic',
                   role: 'owner'
                 }
-              ]);
+              ])
+              .select()
+              .single();
             
             if (insertError) {
-              console.warn('Error creating profile:', insertError);
+              console.error('Error creating profile:', insertError);
+            } else {
+              console.log('Profile created successfully:', newProfile);
+              // Use the newly created profile
+              setUser({
+                id: userId,
+                email: authUser.user.email || '',
+                showroom_name: newProfile.showroom_name,
+                subscription_plan: newProfile.subscription_plan,
+                role: newProfile.role
+              });
+              setLoading(false);
+              return;
             }
           }
         }
+        
+        // If we can't create profile or other error, use fallback
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user) {
+          console.log('Using fallback user data');
+          setUser({
+            id: userId,
+            email: authUser.user.email || '',
+            showroom_name: authUser.user.user_metadata?.showroom_name || authUser.user.email?.split('@')[0] || 'My Showroom',
+            subscription_plan: 'basic',
+            role: 'owner'
+          });
+        }
+        setLoading(false);
+        return;
       }
 
-      const { data: authUser } = await supabase.auth.getUser();
-      
+      // Profile found successfully
+      console.log('Profile loaded successfully:', data);
       setUser({
         id: userId,
-        email: authUser.user?.email || '',
-        showroom_name: data?.showroom_name || authUser.user?.email?.split('@')[0] || 'My Showroom',
-        subscription_plan: data?.subscription_plan || 'basic',
-        role: data?.role || 'owner'
+        email: data.email || '',
+        showroom_name: data.showroom_name,
+        subscription_plan: data.subscription_plan,
+        role: data.role
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -213,6 +247,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            showroom_name: showroomName
+          }
+        }
       });
 
       if (error) {
@@ -221,26 +260,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       if (data.user) {
+        console.log('User signed up, creating profile...');
         // Create showroom profile
-        const { error: profileError } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('showroom_profiles')
           .insert([
             {
               id: data.user.id,
               showroom_name: showroomName,
+              email: email,
               subscription_plan: 'basic',
               role: 'owner'
             }
-          ]);
+          ])
+          .select()
+          .single();
 
         if (profileError) {
           console.error('Error creating profile:', profileError);
+        } else {
+          console.log('Profile created during signup:', profile);
         }
       }
 
       setLoading(false);
       return {};
     } catch (error) {
+      console.error('Signup error:', error);
       setLoading(false);
       return { error: 'An unexpected error occurred' };
     }
