@@ -60,21 +60,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const initializeAuth = async () => {
       try {
-        // Get initial session with timeout
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 10000)
-        );
-
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as any;
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
         if (error) {
           console.error('Error getting session:', error);
+          setUser(null);
           setLoading(false);
           return;
         }
@@ -82,11 +75,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (session?.user) {
           await fetchUserProfile(session.user.id);
         } else {
+          setUser(null);
           setLoading(false);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
         if (mounted) {
+          setUser(null);
           setLoading(false);
         }
       }
