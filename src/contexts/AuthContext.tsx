@@ -4,6 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
+// Debug logging to check if environment variables are loaded
+console.log('Supabase URL:', supabaseUrl);
+console.log('Supabase Key exists:', !!supabaseAnonKey);
+console.log('Supabase Key length:', supabaseAnonKey.length);
+
+// Check if we have valid credentials
+const hasValidCredentials = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'your_project_url_here' && supabaseAnonKey !== 'your_anon_key_here';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface User {
@@ -40,7 +48,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Early return if no valid credentials
   useEffect(() => {
+    if (!hasValidCredentials) {
+      console.error('Invalid Supabase credentials. Please check your .env file.');
+      setLoading(false);
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasValidCredentials) return;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
@@ -72,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [hasValidCredentials]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -115,6 +134,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!hasValidCredentials) {
+      return { error: 'Supabase is not properly configured. Please check your environment variables.' };
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -136,6 +159,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signUp = async (email: string, password: string, showroomName: string) => {
+    if (!hasValidCredentials) {
+      return { error: 'Supabase is not properly configured. Please check your environment variables.' };
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase.auth.signUp({
