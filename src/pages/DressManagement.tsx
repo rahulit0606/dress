@@ -1,34 +1,48 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Upload, Download, MoreVertical } from 'lucide-react';
+import { useAuth, supabase } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 
 const DressManagement = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [dresses, setDresses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const dresses = [
-    {
-      id: 1,
-      name: 'Elegant Evening Gown',
-      category: 'Evening Wear',
-      price: 299,
-      size: 'S, M, L',
-      color: 'Black',
-      status: 'active',
-      tryOns: 124,
-      image: 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?w=300'
-    },
-    {
-      id: 2,
-      name: 'Floral Summer Dress',
-      category: 'Casual',
-      price: 149,
-      size: 'XS, S, M, L, XL',
-      color: 'Multi',
-      status: 'active',
-      tryOns: 98,
-      image: 'https://images.pexels.com/photos/1192609/pexels-photo-1192609.jpeg?w=300'
+  useEffect(() => {
+    if (user) {
+      loadDresses();
     }
-  ];
+  }, [user]);
+
+  const loadDresses = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('dresses')
+        .select('*')
+        .eq('showroom_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading dresses:', error);
+        setDresses([]);
+      } else {
+        setDresses(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading dresses:', error);
+      setDresses([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddDress = () => {
+    // For now, show an alert. In a real app, this would open a modal or navigate to add dress page
+    alert('Add dress functionality will be implemented. This connects to your Supabase database.');
+  };
 
   return (
     <div className="space-y-6">
@@ -47,7 +61,7 @@ const DressManagement = () => {
           </button>
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
             <Plus className="w-4 h-4" />
-            <span>Add Dress</span>
+            <span onClick={handleAddDress}>Add Dress</span>
           </button>
         </div>
       </div>
@@ -90,67 +104,74 @@ const DressManagement = () => {
       </div>
 
       {/* Dress Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {dresses.map((dress) => (
-          <div key={dress.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-            <div className="aspect-w-3 aspect-h-4 relative">
-              <img 
-                src={dress.image} 
-                alt={dress.name}
-                className="w-full h-48 object-cover"
-              />
-              <div className="absolute top-2 right-2">
-                <button className="bg-white rounded-full p-1 shadow-sm hover:bg-gray-50">
-                  <MoreVertical className="w-4 h-4 text-gray-600" />
-                </button>
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading dresses...</p>
+        </div>
+      ) : dresses.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {dresses.map((dress) => (
+            <div key={dress.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="aspect-w-3 aspect-h-4 relative">
+                <img 
+                  src={dress.image_urls?.[0] || 'https://images.pexels.com/photos/985635/pexels-photo-985635.jpeg?w=300'} 
+                  alt={dress.name}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="absolute top-2 right-2">
+                  <button className="bg-white rounded-full p-1 shadow-sm hover:bg-gray-50">
+                    <MoreVertical className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+                <div className="absolute bottom-2 left-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    dress.status === 'active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {dress.status}
+                  </span>
+                </div>
               </div>
-              <div className="absolute bottom-2 left-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  dress.status === 'active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {dress.status}
-                </span>
+              
+              <div className="p-4">
+                <h3 className="font-semibold text-gray-900 mb-1">{dress.name}</h3>
+                <p className="text-sm text-gray-600 mb-2">{dress.category}</p>
+                
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-lg font-bold text-gray-900">${dress.price}</span>
+                  <span className="text-sm text-gray-600">{dress.try_on_count || 0} try-ons</span>
+                </div>
+                
+                <div className="space-y-1 text-xs text-gray-600">
+                  <p><span className="font-medium">Sizes:</span> {dress.sizes?.join(', ') || 'N/A'}</p>
+                  <p><span className="font-medium">Colors:</span> {dress.colors?.join(', ') || 'N/A'}</p>
+                </div>
+                
+                <div className="mt-4 flex space-x-2">
+                  <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors">
+                    Edit
+                  </button>
+                  <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors">
+                    View Stats
+                  </button>
+                </div>
               </div>
             </div>
-            
-            <div className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-1">{dress.name}</h3>
-              <p className="text-sm text-gray-600 mb-2">{dress.category}</p>
-              
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-lg font-bold text-gray-900">${dress.price}</span>
-                <span className="text-sm text-gray-600">{dress.tryOns} try-ons</span>
-              </div>
-              
-              <div className="space-y-1 text-xs text-gray-600">
-                <p><span className="font-medium">Sizes:</span> {dress.size}</p>
-                <p><span className="font-medium">Color:</span> {dress.color}</p>
-              </div>
-              
-              <div className="mt-4 flex space-x-2">
-                <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors">
-                  Edit
-                </button>
-                <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 px-3 rounded-lg transition-colors">
-                  View Stats
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty state for when no dresses match filters */}
-      {dresses.length === 0 && (
+          ))}
+        </div>
+      ) : (
         <div className="text-center py-12">
           <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
             <Plus className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No dresses found</h3>
           <p className="text-gray-600 mb-6">Get started by adding your first dress to the catalog.</p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium">
+          <button 
+            onClick={handleAddDress}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium"
+          >
             Add Your First Dress
           </button>
         </div>

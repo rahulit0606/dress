@@ -119,25 +119,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // Add timeout to profile fetch
-      const profilePromise = supabase
+      const { data, error } = await supabase
         .from('showroom_profiles')
         .select('*')
         .eq('id', userId)
         .single();
-        
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
-      );
 
-      const { data, error } = await Promise.race([
-        profilePromise,
-        timeoutPromise
-      ]) as any;
-
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.warn('Profile fetch error:', error);
-        // Continue with basic user setup instead of throwing
+        // If profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser.user) {
+            // Create profile for existing user
+            const { error: insertError } = await supabase
+              .from('showroom_profiles')
+              .insert([
+                {
+                  id: userId,
+                  showroom_name: authUser.user.email?.split('@')[0] || 'My Showroom',
+                  email: authUser.user.email,
+                  subscription_plan: 'basic',
+                  role: 'owner'
+                }
+              ]);
+            
+            if (insertError) {
+              console.warn('Error creating profile:', insertError);
+            }
+          }
+        }
       }
 
       const { data: authUser } = await supabase.auth.getUser();
@@ -145,19 +156,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser({
         id: userId,
         email: authUser.user?.email || '',
-        showroom_name: data?.showroom_name,
+        showroom_name: data?.showroom_name || authUser.user?.email?.split('@')[0] || 'My Showroom',
         subscription_plan: data?.subscription_plan || 'basic',
         role: data?.role || 'owner'
       });
     } catch (error) {
-      console.warn('Error fetching user profile, using fallback:', error);
+      console.error('Error fetching user profile:', error);
       // Set a basic user object even if profile fetch fails
       const { data: authUser } = await supabase.auth.getUser();
       if (authUser.user) {
         setUser({
           id: userId,
           email: authUser.user.email || '',
-          showroom_name: 'My Showroom',
+          showroom_name: authUser.user.email?.split('@')[0] || 'My Showroom',
           subscription_plan: 'basic',
           role: 'owner'
         });

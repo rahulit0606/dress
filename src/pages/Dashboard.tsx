@@ -33,18 +33,41 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
 
   const loadDashboardData = async () => {
-    // This would fetch real data from your database
-    // For now, using mock data
-    setStats({
-      totalDresses: 156,
-      totalCustomers: 432,
-      totalTryOns: 1248,
-      conversionRate: 18.5
-    });
+    try {
+      // Fetch real data from Supabase
+      const [dressesResult, customersResult, tryOnsResult] = await Promise.all([
+        supabase.from('dresses').select('id').eq('showroom_id', user?.id),
+        supabase.from('customers').select('id').eq('showroom_id', user?.id),
+        supabase.from('try_ons').select('id').eq('showroom_id', user?.id)
+      ]);
+
+      const totalDresses = dressesResult.data?.length || 0;
+      const totalCustomers = customersResult.data?.length || 0;
+      const totalTryOns = tryOnsResult.data?.length || 0;
+      const conversionRate = totalTryOns > 0 ? ((totalCustomers / totalTryOns) * 100) : 0;
+
+      setStats({
+        totalDresses,
+        totalCustomers,
+        totalTryOns,
+        conversionRate: Math.round(conversionRate * 10) / 10
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      // Use fallback data if database query fails
+      setStats({
+        totalDresses: 0,
+        totalCustomers: 0,
+        totalTryOns: 0,
+        conversionRate: 0
+      });
+    }
   };
 
   const chartData = [
