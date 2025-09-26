@@ -19,3 +19,9 @@
        } catch (error) {
          console.error('Error checking API status:', error);
        } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStatus();
+  }, []);
