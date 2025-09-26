@@ -15,7 +15,6 @@ import StatCard from '../components/dashboard/StatCard';
 import ChartCard from '../components/dashboard/ChartCard';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import TopDresses from '../components/dashboard/TopDresses';
-import ApiStatus from '../components/dashboard/ApiStatus';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -160,12 +159,6 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TopDresses />
         
-        <ApiStatus />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div></div>
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
